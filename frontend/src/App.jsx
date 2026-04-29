@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE_URL_STORAGE_KEY = "motor-dashboard-api-base-url";
+const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+
+function normalizeApiBaseUrl(value) {
+  return String(value ?? "").trim().replace(/\/+$/, "");
+}
+
+function getInitialApiBaseUrl() {
+  if (typeof window === "undefined") {
+    return normalizeApiBaseUrl(DEFAULT_API_BASE_URL);
+  }
+
+  const savedApiBaseUrl = window.localStorage.getItem(API_BASE_URL_STORAGE_KEY);
+  return normalizeApiBaseUrl(savedApiBaseUrl || DEFAULT_API_BASE_URL);
+}
 
 function polarToCartesian(cx, cy, radius, angleDeg) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
@@ -123,6 +137,8 @@ function SpeedKnob({ value, maxSpeed, onChange, disabled }) {
 }
 
 export default function App() {
+  const [apiBaseUrlDraft, setApiBaseUrlDraft] = useState(getInitialApiBaseUrl);
+  const [apiBaseUrl, setApiBaseUrl] = useState(getInitialApiBaseUrl);
   const [configDraft, setConfigDraft] = useState("");
   const [configured, setConfigured] = useState(null);
   const [configSaving, setConfigSaving] = useState(false);
@@ -139,9 +155,39 @@ export default function App() {
   const [error, setError] = useState("");
   const initializedRef = useRef(false);
 
+  function persistApiBaseUrl() {
+    const normalizedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrlDraft);
+    setApiBaseUrlDraft(normalizedApiBaseUrl);
+    setApiBaseUrl(normalizedApiBaseUrl);
+
+    if (typeof window !== "undefined") {
+      if (normalizedApiBaseUrl) {
+        window.localStorage.setItem(API_BASE_URL_STORAGE_KEY, normalizedApiBaseUrl);
+      } else {
+        window.localStorage.removeItem(API_BASE_URL_STORAGE_KEY);
+      }
+    }
+
+    setConfigured(null);
+    setError("");
+    initializedRef.current = false;
+    setStatus((currentStatus) => ({
+      ...currentStatus,
+      online: false,
+      source: "offline",
+      updatedAt: null
+    }));
+  }
+
   async function fetchConfig() {
+    if (!apiBaseUrl) {
+      setConfigured(false);
+      setError("Backend API URL is required.");
+      return null;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/config`);
+      const response = await fetch(`${apiBaseUrl}/api/config`);
 
       if (!response.ok) {
         throw new Error("Unable to fetch backend configuration");
@@ -159,8 +205,18 @@ export default function App() {
   }
 
   async function fetchStatus() {
+    if (!apiBaseUrl) {
+      setStatus((currentStatus) => ({
+        ...currentStatus,
+        online: false,
+        source: "offline"
+      }));
+      setError("Backend API URL is required.");
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/motor/status`);
+      const response = await fetch(`${apiBaseUrl}/api/motor/status`);
 
       if (!response.ok) {
         throw new Error("Unable to fetch motor status");
@@ -192,7 +248,7 @@ export default function App() {
     }
 
     initialize();
-  }, []);
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (!configured) {
@@ -209,7 +265,7 @@ export default function App() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/config`, {
+      const response = await fetch(`${apiBaseUrl}/api/config`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -238,7 +294,7 @@ export default function App() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/motor/speed`, {
+      const response = await fetch(`${apiBaseUrl}/api/motor/speed`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -301,6 +357,20 @@ export default function App() {
 
           <div className="setup-form">
             <label className="field-label" htmlFor="nodemcuBaseUrl">
+              Backend API Base URL
+            </label>
+            <input
+              id="apiBaseUrl"
+              className="text-input"
+              type="url"
+              placeholder="https://your-backend.example.com"
+              value={apiBaseUrlDraft}
+              onChange={(event) => setApiBaseUrlDraft(event.target.value)}
+            />
+            <button className="primary-button secondary-button" onClick={persistApiBaseUrl}>
+              Save backend URL
+            </button>
+            <label className="field-label" htmlFor="nodemcuBaseUrl">
               NodeMCU Base URL
             </label>
             <input
@@ -352,11 +422,29 @@ export default function App() {
             <span className={`status-dot${status.online ? " is-live" : ""}`} />
             {connectionLabel}
           </div>
+          <div className="status-pill">Backend {apiBaseUrl || "Not configured"}</div>
           <div className="status-pill">NodeMCU {configDraft || "Not configured"}</div>
           <div className="status-pill">
             Last update {status.updatedAt ? new Date(status.updatedAt).toLocaleTimeString() : "--:--:--"}
           </div>
         </div>
+      </section>
+
+      <section className="card-panel">
+        <label className="field-label" htmlFor="runtimeApiBaseUrl">
+          Backend API Base URL
+        </label>
+        <input
+          id="runtimeApiBaseUrl"
+          className="text-input"
+          type="url"
+          placeholder="https://your-backend.example.com"
+          value={apiBaseUrlDraft}
+          onChange={(event) => setApiBaseUrlDraft(event.target.value)}
+        />
+        <button className="primary-button secondary-button" onClick={persistApiBaseUrl}>
+          Save backend URL
+        </button>
       </section>
 
       <section className="dashboard-grid">

@@ -108,6 +108,7 @@ If the frontend is hosted on Render and the backend is running on your Mac:
 - run the backend with `HOST=0.0.0.0`
 - set `FRONTEND_ORIGIN=https://YOUR_RENDER_APP.onrender.com`
 - set Render env `VITE_API_BASE_URL` to your backend URL
+- or leave `VITE_API_BASE_URL` empty and enter the backend URL from the deployed UI
 
 Example backend env:
 
@@ -123,6 +124,14 @@ Important: `http://192.168.x.x:4000` only works if the browser can reach your Ma
 - a public IP with router port forwarding to your Mac
 - a tunnel/reverse proxy such as Cloudflare Tunnel, Tailscale Funnel, or ngrok
 - deploy the backend to a public host instead of your Mac
+
+Recommended setup for this project:
+
+1. Start the backend on your Mac with `HOST=0.0.0.0`.
+2. Expose `http://localhost:4000` through a public tunnel.
+3. Set `FRONTEND_ORIGIN` in `backend/.env` to your Render app URL.
+4. Open the Render frontend and save the tunnel URL in the "Backend API Base URL" field.
+5. Save your NodeMCU URL in the UI if it is not already configured.
 
 ## Notes for NodeMCU firmware
 

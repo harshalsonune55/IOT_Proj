@@ -127,6 +127,18 @@ input {
   padding: 24px;
 }
 
+.card-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  border: 1px solid var(--panel-border);
+  border-radius: 28px;
+  padding: 24px;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(18px);
+}
+
 .panel-heading {
   display: flex;
   align-items: center;
@@ -152,6 +164,12 @@ input {
 .primary-button:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f7fb;
+  border: 1px solid rgba(160, 202, 255, 0.16);
 }
 
 .setup-form {
@@ -322,7 +340,8 @@ input {
   }
 
   .hero-panel,
-  .panel {
+  .panel,
+  .card-panel {
     padding: 18px;
     border-radius: 22px;
   }

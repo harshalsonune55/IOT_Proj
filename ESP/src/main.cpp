@@ -23,6 +23,31 @@ int targetSpeed = 0;
 int currentSpeed = 0;
 unsigned long lastSpeedUpdateMs = 0;
 
+const char* methodToString(HTTPMethod method) {
+  switch (method) {
+    case HTTP_GET:
+      return "GET";
+    case HTTP_POST:
+      return "POST";
+    case HTTP_PUT:
+      return "PUT";
+    case HTTP_PATCH:
+      return "PATCH";
+    case HTTP_DELETE:
+      return "DELETE";
+    case HTTP_OPTIONS:
+      return "OPTIONS";
+    default:
+      return "OTHER";
+  }
+}
+
+void sendCorsHeaders() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
 String getRequestBody() {
   if (server.hasArg("plain")) {
     return server.arg("plain");
@@ -134,13 +159,18 @@ void sendJsonStatus() {
   response += "\"uptimeMs\":" + String(millis());
   response += "}";
 
+  sendCorsHeaders();
   server.send(200, "application/json", response);
 }
 
 void handleRoot() {
   String response = "ESP32 BLDC ESC controller is running.\n";
   response += "GET /motor/status\n";
-  response += "POST /motor/speed with JSON: {\"speed\": 50}\n";
+  response += "GET or POST /motor/speed\n";
+  response += "Examples:\n";
+  response += "  /motor/speed?speed=50\n";
+  response += "  POST JSON: {\"speed\": 50}\n";
+  sendCorsHeaders();
   server.send(200, "text/plain", response);
 }
 
@@ -162,8 +192,32 @@ void handleMotorSpeed() {
   sendJsonStatus();
 }
 
+void handleOptions() {
+  sendCorsHeaders();
+  server.send(204);
+}
+
+void handleFavicon() {
+  server.send(204);
+}
+
 void handleNotFound() {
-  server.send(404, "application/json", "{\"error\":\"Not found\"}");
+  const String uri = server.uri();
+  const char* method = methodToString(server.method());
+
+  Serial.print("Unhandled request: ");
+  Serial.print(method);
+  Serial.print(" ");
+  Serial.println(uri);
+
+  String response = "{";
+  response += "\"error\":\"Not found\",";
+  response += "\"method\":\"" + String(method) + "\",";
+  response += "\"uri\":\"" + uri + "\"";
+  response += "}";
+
+  sendCorsHeaders();
+  server.send(404, "application/json", response);
 }
 
 void connectToWifi() {
@@ -215,6 +269,9 @@ void setup() {
   server.on("/motor/status", HTTP_GET, handleMotorStatus);
   server.on("/motor/speed", HTTP_GET, handleMotorSpeed);
   server.on("/motor/speed", HTTP_POST, handleMotorSpeed);
+  server.on("/favicon.ico", HTTP_GET, handleFavicon);
+  server.on("/motor/status", HTTP_OPTIONS, handleOptions);
+  server.on("/motor/speed", HTTP_OPTIONS, handleOptions);
   server.onNotFound(handleNotFound);
   server.begin();
 
