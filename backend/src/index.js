@@ -15,6 +15,7 @@ dotenv.config({
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
+const host = process.env.HOST?.trim() || "0.0.0.0";
 const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? "http://localhost:5173")
   .split(",")
   .map((o) => o.trim())
@@ -104,8 +105,8 @@ app.post("/api/motor/speed", async (request, response) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Motor control backend listening on http://localhost:${port}`);
+app.listen(port, host, () => {
+  console.log(`Motor control backend listening on http://${host}:${port}`);
   console.log(
     motorService.hasDevice
       ? `Forwarding motor commands to ${motorService.baseUrl}`

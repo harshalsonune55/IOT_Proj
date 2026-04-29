@@ -67,6 +67,7 @@ cp backend/.env.example backend/.env
 Update `backend/.env`:
 
 ```env
+HOST=0.0.0.0
 PORT=4000
 FRONTEND_ORIGIN=http://localhost:5173
 NODEMCU_BASE_URL=http://192.168.1.50
@@ -90,9 +91,38 @@ Start the frontend in a separate terminal:
 npm run dev:frontend
 ```
 
+If you want the frontend to call a non-local backend, create `frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://YOUR_BACKEND_HOST:4000
+```
+
 Then open:
 
 - `http://localhost:5173`
+
+## Render Frontend + Mac Backend
+
+If the frontend is hosted on Render and the backend is running on your Mac:
+
+- run the backend with `HOST=0.0.0.0`
+- set `FRONTEND_ORIGIN=https://YOUR_RENDER_APP.onrender.com`
+- set Render env `VITE_API_BASE_URL` to your backend URL
+
+Example backend env:
+
+```env
+HOST=0.0.0.0
+PORT=4000
+FRONTEND_ORIGIN=https://your-app.onrender.com
+NODEMCU_BASE_URL=http://192.168.1.50
+```
+
+Important: `http://192.168.x.x:4000` only works if the browser can reach your Mac on the same network. A public Render site usually cannot call a private Mac LAN IP directly. For Render to reach your backend, you need one of these:
+
+- a public IP with router port forwarding to your Mac
+- a tunnel/reverse proxy such as Cloudflare Tunnel, Tailscale Funnel, or ngrok
+- deploy the backend to a public host instead of your Mac
 
 ## Notes for NodeMCU firmware
 
