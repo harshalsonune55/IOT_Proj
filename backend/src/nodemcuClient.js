@@ -22,9 +22,7 @@ export function createMotorService({
   pollTimeoutMs = 3000
 }) {
   let state = { ...defaultState };
-  const normalizedBaseUrl = baseUrl?.replace(/\/+$/, "") ?? "";
-
-  const hasDevice = Boolean(normalizedBaseUrl);
+  let normalizedBaseUrl = baseUrl?.replace(/\/+$/, "") ?? "";
 
   async function fetchWithTimeout(url, options = {}) {
     const controller = new AbortController();
@@ -118,13 +116,23 @@ export function createMotorService({
       return maxSpeed;
     },
     get hasDevice() {
-      return hasDevice;
+      return Boolean(normalizedBaseUrl);
     },
     get baseUrl() {
       return normalizedBaseUrl;
     },
+    setBaseUrl(nextBaseUrl) {
+      normalizedBaseUrl = nextBaseUrl?.replace(/\/+$/, "") ?? "";
+      if (!normalizedBaseUrl) {
+        mergeState({
+          online: false,
+          source: "unconfigured",
+          error: "NODEMCU_BASE_URL is not set. Backend is not connected to the ESP controller."
+        });
+      }
+    },
     async getStatus() {
-      if (!hasDevice) {
+      if (!normalizedBaseUrl) {
         return mergeState({
           online: false,
           source: "unconfigured",
@@ -145,7 +153,7 @@ export function createMotorService({
     async setSpeed(speed) {
       const nextSpeed = clampSpeed(speed, maxSpeed);
 
-      if (!hasDevice) {
+      if (!normalizedBaseUrl) {
         return mergeState({
           targetSpeed: nextSpeed,
           online: false,

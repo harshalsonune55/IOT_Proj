@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createConfigStore } from "./configStore.js";
 import { createMotorService } from "./nodemcuClient.js";
 
 const currentFilePath = fileURLToPath(import.meta.url);
@@ -18,8 +19,12 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? "http://localhost:5173")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
+const configStore = createConfigStore(path.resolve(currentDirPath, "../.runtime-config.json"));
+const persistedConfig = await configStore.read();
+const initialBaseUrl =
+  persistedConfig.nodemcuBaseUrl?.trim() || process.env.NODEMCU_BASE_URL?.trim() || "";
 const motorService = createMotorService({
-  baseUrl: process.env.NODEMCU_BASE_URL?.trim(),
+  baseUrl: initialBaseUrl,
   maxSpeed: Number(process.env.MOTOR_MAX_SPEED ?? 100),
   pollTimeoutMs: Number(process.env.POLL_TIMEOUT_MS ?? 3000)
 });
@@ -36,6 +41,49 @@ app.get("/api/health", (_request, response) => {
     ok: true,
     timestamp: new Date().toISOString()
   });
+});
+
+app.get("/api/config", (_request, response) => {
+  response.json({
+    nodemcuBaseUrl: motorService.baseUrl,
+    configured: motorService.hasDevice
+  });
+});
+
+app.post("/api/config", async (request, response) => {
+  const nodemcuBaseUrl = String(request.body?.nodemcuBaseUrl ?? "").trim().replace(/\/+$/, "");
+
+  try {
+    if (!nodemcuBaseUrl) {
+      response.status(400).json({
+        error: "NODEMCU_BASE_URL is required."
+      });
+      return;
+    }
+
+    const parsedUrl = new URL(nodemcuBaseUrl);
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      response.status(400).json({
+        error: "NODEMCU_BASE_URL must start with http:// or https://."
+      });
+      return;
+    }
+
+    motorService.setBaseUrl(nodemcuBaseUrl);
+    await configStore.write({
+      nodemcuBaseUrl
+    });
+
+    response.json({
+      nodemcuBaseUrl,
+      configured: true
+    });
+  } catch (error) {
+    response.status(400).json({
+      error: "NODEMCU_BASE_URL must be a valid URL."
+    });
+  }
 });
 
 app.get("/api/motor/status", async (_request, response) => {

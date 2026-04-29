@@ -123,6 +123,9 @@ function SpeedKnob({ value, maxSpeed, onChange, disabled }) {
 }
 
 export default function App() {
+  const [configDraft, setConfigDraft] = useState("");
+  const [configured, setConfigured] = useState(null);
+  const [configSaving, setConfigSaving] = useState(false);
   const [status, setStatus] = useState({
     currentSpeed: 0,
     targetSpeed: 0,
@@ -135,6 +138,25 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const initializedRef = useRef(false);
+
+  async function fetchConfig() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/config`);
+
+      if (!response.ok) {
+        throw new Error("Unable to fetch backend configuration");
+      }
+
+      const payload = await response.json();
+      setConfigDraft(payload.nodemcuBaseUrl ?? "");
+      setConfigured(payload.configured);
+      return payload;
+    } catch (requestError) {
+      setConfigured(false);
+      setError(requestError.message);
+      return null;
+    }
+  }
 
   async function fetchStatus() {
     try {
@@ -162,12 +184,54 @@ export default function App() {
   }
 
   useEffect(() => {
-    fetchStatus();
+    async function initialize() {
+      const payload = await fetchConfig();
+      if (payload?.configured) {
+        await fetchStatus();
+      }
+    }
+
+    initialize();
+  }, []);
+
+  useEffect(() => {
+    if (!configured) {
+      return undefined;
+    }
 
     const intervalId = window.setInterval(fetchStatus, 2000);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [configured]);
+
+  async function saveConfig() {
+    setConfigSaving(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/config`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ nodemcuBaseUrl: configDraft })
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to save NodeMCU URL");
+      }
+
+      setConfigured(true);
+      await fetchStatus();
+    } catch (requestError) {
+      setConfigured(false);
+      setError(requestError.message);
+    } finally {
+      setConfigSaving(false);
+    }
+  }
 
   async function applySpeed() {
     setSaving(true);
@@ -222,6 +286,55 @@ export default function App() {
     return "Waiting for controller state";
   }, [status.online, status.source]);
 
+  if (configured === false) {
+    return (
+      <main className="app-shell">
+        <section className="hero-panel setup-panel">
+          <div className="hero-copy">
+            <span className="eyebrow">Initial Setup</span>
+            <h1>Connect the dashboard to your NodeMCU first.</h1>
+            <p>
+              Enter the NodeMCU base URL once. The backend will save it and use that address for all
+              future motor requests.
+            </p>
+          </div>
+
+          <div className="setup-form">
+            <label className="field-label" htmlFor="nodemcuBaseUrl">
+              NodeMCU Base URL
+            </label>
+            <input
+              id="nodemcuBaseUrl"
+              className="text-input"
+              type="url"
+              placeholder="http://192.168.1.50"
+              value={configDraft}
+              onChange={(event) => setConfigDraft(event.target.value)}
+            />
+            <button className="primary-button" disabled={configSaving} onClick={saveConfig}>
+              {configSaving ? "Saving..." : "Save and continue"}
+            </button>
+            {error ? <p className="error-box">{error}</p> : null}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (configured === null) {
+    return (
+      <main className="app-shell">
+        <section className="hero-panel setup-panel">
+          <div className="hero-copy">
+            <span className="eyebrow">Loading</span>
+            <h1>Checking backend configuration.</h1>
+            <p>The dashboard is verifying whether a saved NodeMCU URL already exists.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <section className="hero-panel">
@@ -239,6 +352,7 @@ export default function App() {
             <span className={`status-dot${status.online ? " is-live" : ""}`} />
             {connectionLabel}
           </div>
+          <div className="status-pill">NodeMCU {configDraft || "Not configured"}</div>
           <div className="status-pill">
             Last update {status.updatedAt ? new Date(status.updatedAt).toLocaleTimeString() : "--:--:--"}
           </div>

@@ -56,6 +56,11 @@ input {
   border-radius: 28px;
 }
 
+.setup-panel {
+  min-height: 420px;
+  align-content: center;
+}
+
 .eyebrow {
   display: inline-flex;
   width: fit-content;
@@ -147,6 +152,37 @@ input {
 .primary-button:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.setup-form {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 520px);
+}
+
+.field-label {
+  color: #e3edff;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.text-input {
+  width: 100%;
+  border: 1px solid rgba(160, 202, 255, 0.16);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  outline: none;
+}
+
+.text-input::placeholder {
+  color: rgba(245, 247, 251, 0.4);
+}
+
+.text-input:focus {
+  border-color: rgba(87, 214, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(87, 214, 255, 0.12);
 }
 
 .primary-panel {
